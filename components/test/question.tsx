@@ -1,34 +1,18 @@
-"use client"
+"use client";
 
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
-import type { Question } from "@/lib/types"
+import Question from "@/components/test/question";
 
-export function QuestionCard({
-  q,
-  value,
-  onChange,
-  index,
-}: {
-  q: Question
-  value?: string
-  onChange: (choiceId: string) => void
-  index: number
-}) {
+export default function TestPage() {
   return (
-    <div className="space-y-3 p-4">
-      <div className="text-sm text-muted-foreground">Question {index + 1}</div>
-      <div className="text-pretty">{q.stem}</div>
-      <RadioGroup value={value} onValueChange={onChange} className="mt-2 grid gap-2">
-        {q.choices.map((c) => (
-          <div key={c.id} className="flex items-center gap-2 rounded-md border p-3">
-            <RadioGroupItem id={`${q.id}_${c.id}`} value={c.id} />
-            <Label htmlFor={`${q.id}_${c.id}`} className="flex-1 text-pretty">
-              {c.label}. {c.text}
-            </Label>
-          </div>
-        ))}
-      </RadioGroup>
+    <div className="mx-auto max-w-3xl space-y-4">
+      <header className="space-y-1 pt-2">
+        <h1 className="text-xl font-semibold">Practice Test</h1>
+        <p className="text-muted-foreground">
+          Generate SAT/IELTS style MCQs, attempt them, and check your answers.
+        </p>
+      </header>
+
+      <Question />
     </div>
-  )
+  );
 }
