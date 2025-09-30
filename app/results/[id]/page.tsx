@@ -2,6 +2,15 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Pie } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend
+} from "chart.js";
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 type Question = {
   question: string;
@@ -35,6 +44,29 @@ export default function ResultPage() {
     return <p className="text-center">⚠️ No result found.</p>;
   }
 
+  // Pie chart data
+  const chartData = {
+    labels: ["Correct", "Wrong"],
+    datasets: [
+      {
+        data: [result.score, result.wrong],
+        backgroundColor: ["#4ade80", "#f87171"], // green, red
+      },
+    ],
+  };
+
+  // Weak areas (based on question keywords)
+  const weakAreas: Record<string, number> = {};
+  result.questions.forEach((q) => {
+    if (q.selected && q.selected !== q.answer) {
+      const keyword = q.question.split(" ")[0]; // crude: first word
+      weakAreas[keyword] = (weakAreas[keyword] || 0) + 1;
+    }
+  });
+  const weakList = Object.entries(weakAreas)
+    .sort((a, b) => b[1] - a[1])
+    .map(([topic, count]) => `${topic} (${count} mistakes)`);
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       {/* Header */}
@@ -46,14 +78,29 @@ export default function ResultPage() {
       </header>
 
       {/* Score Box */}
-      <div className="p-4 border rounded bg-gray-50">
+      <div className="p-4 border rounded bg-gray-50 space-y-2">
         <p className="text-lg">
           ✅ Score: <strong>{result.score}</strong> / {result.total}
         </p>
-        <p className="text-red-500">
-          ❌ Wrong: {result.wrong}
-        </p>
+        <p className="text-red-500">❌ Wrong: {result.wrong}</p>
       </div>
+
+      {/* Chart */}
+      <div className="max-w-xs mx-auto">
+        <Pie data={chartData} />
+      </div>
+
+      {/* Weak areas */}
+      {weakList.length > 0 && (
+        <div className="p-4 border rounded bg-yellow-50">
+          <h2 className="text-lg font-semibold">Weak Areas</h2>
+          <ul className="list-disc pl-6">
+            {weakList.map((w, idx) => (
+              <li key={idx}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Review */}
       {result.questions && (
