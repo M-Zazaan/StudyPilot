@@ -1,72 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type MCQ = {
+type Question = {
   question: string;
   options: string[];
   answer: string;
+  selected?: string | null;
 };
 
-async function fetchMCQ(examType: string): Promise<MCQ> {
-  const response = await fetch("https://sciaticmz-studypilot.hf.space/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: `Generate a ${examType} style MCQ`, mode: "mcq" }),
-  });
-
-  const data = await response.json();
-  return data.response as MCQ;
-}
-
 export default function Question({ examType }: { examType: string }) {
-  const [questions, setQuestions] = useState<MCQ[]>([]);
+  const router = useRouter();
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<string | null>(null);
   const [score, setScore] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
-  const router = useRouter();
-
-  const generateMCQs = async () => {
-    setLoading(true);
-    setFeedback(null);
-    setSelected(null);
-    setCurrent(0);
-    setScore(0);
-
-    try {
-      const newQs: MCQ[] = [];
-      for (let i = 0; i < 5; i++) {
-        const q = await fetchMCQ(examType);
-        newQs.push(q);
+  // Fetch questions from backend
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        const res = await fetch("https://sciaticmz-studypilot.hf.space/mcq", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ examType }),
+        });
+        const data = await res.json();
+        setQuestions(data.questions);
+      } catch (err) {
+        console.error("Error fetching questions", err);
       }
-      setQuestions(newQs);
-    } catch {
-      setFeedback("⚠️ Error fetching MCQs.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const checkAnswer = () => {
-    if (!questions[current] || !selected) return;
-    if (selected === questions[current].answer) {
+    fetchQuestions();
+  }, [examType]);
+
+  // Handle option selection
+  const handleSelect = (option: string) => {
+    setSelected(option);
+    if (option === questions[current].answer) {
       setScore((prev) => prev + 1);
       setFeedback("✅ Correct!");
     } else {
-      setFeedback(`❌ Wrong. Correct: ${questions[current].answer}`);
+      setFeedback(`❌ Wrong! Correct: ${questions[current].answer}`);
     }
   };
 
+  // Move to next question OR save results
   const nextQuestion = () => {
     if (current + 1 < questions.length) {
+      // Save current selection before moving forward
+      setQuestions((prev) =>
+        prev.map((q, i) =>
+          i === current ? { ...q, selected } : q
+        )
+      );
       setCurrent((prev) => prev + 1);
       setSelected(null);
       setFeedback(null);
     } else {
+      // Save last question’s selection + results
+      const finalQuestions = questions.map((q, i) =>
+        i === current ? { ...q, selected } : q
+      );
+
       const id = Date.now();
       localStorage.setItem(
         `result-${id}`,
@@ -75,63 +74,56 @@ export default function Question({ examType }: { examType: string }) {
           total: questions.length,
           wrong: questions.length - score,
           examType,
+          questions: finalQuestions,
         })
       );
+
       router.push(`/results/${id}`);
     }
   };
 
-  const currentQ = questions[current];
+  if (!questions.length) {
+    return <p className="text-center">⏳ Loading questions...</p>;
+  }
 
   return (
     <div className="space-y-4">
-      <button
-        onClick={generateMCQs}
-        disabled={loading}
-        className="bg-blue-500 text-white px-4 py-2 rounded"
-      >
-        {loading ? "Generating..." : "Start Test"}
-      </button>
+      {/* Question */}
+      <p className="font-medium">
+        Q{current + 1}. {questions[current].question}
+      </p>
 
-      {currentQ && (
-        <div className="border rounded p-4">
-          <h2 className="font-semibold">
-            Q{current + 1}. {currentQ.question}
-          </h2>
-          <div className="space-y-2 mt-2">
-            {currentQ.options.map((opt, i) => (
-              <label key={i} className="block">
-                <input
-                  type="radio"
-                  name="option"
-                  value={opt}
-                  checked={selected === opt}
-                  onChange={() => setSelected(opt)}
-                />{" "}
-                {opt}
-              </label>
-            ))}
-          </div>
+      {/* Options */}
+      <div className="space-y-2">
+        {questions[current].options.map((opt, i) => (
+          <button
+            key={i}
+            onClick={() => handleSelect(opt)}
+            disabled={!!selected}
+            className={`block w-full text-left p-2 border rounded ${
+              selected === opt
+                ? opt === questions[current].answer
+                  ? "bg-green-100 border-green-500"
+                  : "bg-red-100 border-red-500"
+                : "hover:bg-gray-50"
+            }`}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
 
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={checkAnswer}
-              className="bg-green-500 text-white px-3 py-1 rounded"
-              disabled={!selected}
-            >
-              Check
-            </button>
-            <button
-              onClick={nextQuestion}
-              className="bg-purple-500 text-white px-3 py-1 rounded"
-              disabled={!feedback}
-            >
-              {current + 1 === questions.length ? "Finish" : "Next"}
-            </button>
-          </div>
+      {/* Feedback */}
+      {feedback && <p className="text-sm">{feedback}</p>}
 
-          {feedback && <p className="mt-2">{feedback}</p>}
-        </div>
+      {/* Next button */}
+      {selected && (
+        <button
+          onClick={nextQuestion}
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          {current + 1 < questions.length ? "Next Question" : "Finish Test"}
+        </button>
       )}
     </div>
   );
