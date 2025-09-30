@@ -19,25 +19,25 @@ export default function Question({ examType }: { examType: string }) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(0); // in seconds
 
-  // Pick timer based on examType
+  // Set timer based on exam type
   useEffect(() => {
-    let duration = 600; // default 10 min
-    if (examType.toLowerCase() === "sat") duration = 30 * 60; // 30 min
-    if (examType.toLowerCase() === "ielts") duration = 15 * 60; // 15 min
+    let duration = 600; // default 10 minutes
+    if (examType.toLowerCase() === "sat") duration = 30 * 60;
+    if (examType.toLowerCase() === "ielts") duration = 15 * 60;
     setTimeLeft(duration);
   }, [examType]);
 
   // Countdown effect
   useEffect(() => {
-    if (timeLeft <= 0) {
+    if (timeLeft <= 0 && questions.length > 0) {
       finishTest(); // auto-submit
       return;
     }
     const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearInterval(timer);
-  }, [timeLeft]);
+  }, [timeLeft, questions]);
 
-  // Fetch questions
+  // Fetch questions from backend
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
@@ -56,6 +56,7 @@ export default function Question({ examType }: { examType: string }) {
     fetchQuestions();
   }, [examType]);
 
+  // Handle answer selection
   const handleSelect = (option: string) => {
     setSelected(option);
     if (option === questions[current].answer) {
@@ -66,12 +67,11 @@ export default function Question({ examType }: { examType: string }) {
     }
   };
 
+  // Next question or finish
   const nextQuestion = () => {
     if (current + 1 < questions.length) {
       setQuestions((prev) =>
-        prev.map((q, i) =>
-          i === current ? { ...q, selected } : q
-        )
+        prev.map((q, i) => (i === current ? { ...q, selected } : q))
       );
       setCurrent((prev) => prev + 1);
       setSelected(null);
@@ -81,6 +81,7 @@ export default function Question({ examType }: { examType: string }) {
     }
   };
 
+  // Finish test and save results
   const finishTest = () => {
     const finalQuestions = questions.map((q, i) =>
       i === current ? { ...q, selected } : q
@@ -101,6 +102,7 @@ export default function Question({ examType }: { examType: string }) {
     router.push(`/results/${id}`);
   };
 
+  // Format mm:ss
   const formatTime = (sec: number) => {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
@@ -113,11 +115,9 @@ export default function Question({ examType }: { examType: string }) {
 
   return (
     <div className="space-y-4">
-      {/* Timer */}
+      {/* Header with timer */}
       <div className="flex justify-between items-center">
-        <p className="font-medium">
-          Exam: {examType.toUpperCase()}
-        </p>
+        <p className="font-medium">Exam: {examType.toUpperCase()}</p>
         <p
           className={`font-semibold ${
             timeLeft < 60 ? "text-red-500" : "text-gray-700"
@@ -155,7 +155,7 @@ export default function Question({ examType }: { examType: string }) {
       {/* Feedback */}
       {feedback && <p className="text-sm">{feedback}</p>}
 
-      {/* Next / Finish */}
+      {/* Next / Finish button */}
       {selected && (
         <button
           onClick={nextQuestion}
