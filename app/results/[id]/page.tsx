@@ -3,17 +3,19 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+type Question = {
+  question: string;
+  options: string[];
+  answer: string;
+  selected?: string | null;
+};
+
 type ResultData = {
   score: number;
   total: number;
   wrong: number;
   examType: string;
-  questions?: {
-    question: string;
-    options: string[];
-    answer: string;
-    selected?: string | null;
-  }[];
+  questions: Question[];
 };
 
 export default function ResultPage() {
@@ -35,6 +37,7 @@ export default function ResultPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
+      {/* Header */}
       <header className="space-y-1 pt-2">
         <h1 className="text-2xl font-semibold">Results</h1>
         <p className="text-muted-foreground">
@@ -42,7 +45,8 @@ export default function ResultPage() {
         </p>
       </header>
 
-      <div className="p-4 border rounded">
+      {/* Score Box */}
+      <div className="p-4 border rounded bg-gray-50">
         <p className="text-lg">
           ✅ Score: <strong>{result.score}</strong> / {result.total}
         </p>
@@ -51,13 +55,14 @@ export default function ResultPage() {
         </p>
       </div>
 
+      {/* Review */}
       {result.questions && (
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Review</h2>
           {result.questions.map((q, idx) => (
             <div
               key={idx}
-              className="border rounded p-4 space-y-2 bg-gray-50"
+              className="border rounded p-4 space-y-2 bg-white shadow-sm"
             >
               <p className="font-medium">
                 Q{idx + 1}. {q.question}
@@ -75,7 +80,7 @@ export default function ResultPage() {
                           ? "bg-green-100 text-green-700"
                           : isChosen
                           ? "bg-red-100 text-red-700"
-                          : ""
+                          : "text-gray-700"
                       }`}
                     >
                       {opt}
@@ -90,6 +95,7 @@ export default function ResultPage() {
         </div>
       )}
 
+      {/* Actions */}
       <div className="flex gap-3">
         <button
           onClick={() => router.push("/test/new")}
