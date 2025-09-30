@@ -17,8 +17,27 @@ export default function Question({ examType }: { examType: string }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [score, setScore] = useState(0);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState(0); // in seconds
 
-  // Fetch questions from backend
+  // Pick timer based on examType
+  useEffect(() => {
+    let duration = 600; // default 10 min
+    if (examType.toLowerCase() === "sat") duration = 30 * 60; // 30 min
+    if (examType.toLowerCase() === "ielts") duration = 15 * 60; // 15 min
+    setTimeLeft(duration);
+  }, [examType]);
+
+  // Countdown effect
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      finishTest(); // auto-submit
+      return;
+    }
+    const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft]);
+
+  // Fetch questions
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
@@ -37,7 +56,6 @@ export default function Question({ examType }: { examType: string }) {
     fetchQuestions();
   }, [examType]);
 
-  // Handle option selection
   const handleSelect = (option: string) => {
     setSelected(option);
     if (option === questions[current].answer) {
@@ -48,10 +66,8 @@ export default function Question({ examType }: { examType: string }) {
     }
   };
 
-  // Move to next question OR save results
   const nextQuestion = () => {
     if (current + 1 < questions.length) {
-      // Save current selection before moving forward
       setQuestions((prev) =>
         prev.map((q, i) =>
           i === current ? { ...q, selected } : q
@@ -61,25 +77,34 @@ export default function Question({ examType }: { examType: string }) {
       setSelected(null);
       setFeedback(null);
     } else {
-      // Save last question’s selection + results
-      const finalQuestions = questions.map((q, i) =>
-        i === current ? { ...q, selected } : q
-      );
-
-      const id = Date.now();
-      localStorage.setItem(
-        `result-${id}`,
-        JSON.stringify({
-          score,
-          total: questions.length,
-          wrong: questions.length - score,
-          examType,
-          questions: finalQuestions,
-        })
-      );
-
-      router.push(`/results/${id}`);
+      finishTest();
     }
+  };
+
+  const finishTest = () => {
+    const finalQuestions = questions.map((q, i) =>
+      i === current ? { ...q, selected } : q
+    );
+
+    const id = Date.now();
+    localStorage.setItem(
+      `result-${id}`,
+      JSON.stringify({
+        score,
+        total: questions.length,
+        wrong: questions.length - score,
+        examType,
+        questions: finalQuestions,
+      })
+    );
+
+    router.push(`/results/${id}`);
+  };
+
+  const formatTime = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
   if (!questions.length) {
@@ -88,6 +113,20 @@ export default function Question({ examType }: { examType: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Timer */}
+      <div className="flex justify-between items-center">
+        <p className="font-medium">
+          Exam: {examType.toUpperCase()}
+        </p>
+        <p
+          className={`font-semibold ${
+            timeLeft < 60 ? "text-red-500" : "text-gray-700"
+          }`}
+        >
+          ⏱ {formatTime(timeLeft)}
+        </p>
+      </div>
+
       {/* Question */}
       <p className="font-medium">
         Q{current + 1}. {questions[current].question}
@@ -116,7 +155,7 @@ export default function Question({ examType }: { examType: string }) {
       {/* Feedback */}
       {feedback && <p className="text-sm">{feedback}</p>}
 
-      {/* Next button */}
+      {/* Next / Finish */}
       {selected && (
         <button
           onClick={nextQuestion}
